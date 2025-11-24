@@ -1,0 +1,72 @@
+-- Block Spin Hub Simple
+local UIS,RS=game:GetService("UserInputService"),game:GetService("RunService")
+local P=game.Players.LocalPlayer
+local C=P.Character or P.CharacterAdded:Wait()
+local H=C:FindFirstChild("Humanoid") or C.PrimaryPart
+local Cam=workspace.CurrentCamera
+
+-- GUI
+local SGui=Instance.new("ScreenGui",P:WaitForChild("PlayerGui"))
+local Menu=Instance.new("Frame",SGui)
+Menu.Position,Menu.Size=UDim2.new(-0.3,0,0.3,0),UDim2.new(0,150,0,150)
+Menu.BackgroundColor3=Color3.fromRGB(50,50,50)
+
+local function makeBtn(text,pos)
+	local b=Instance.new("TextButton",Menu)
+	b.Size=UDim2.new(1,0,0,40)
+	b.Position=UDim2.new(0,0,0,pos)
+	b.Text=text
+	b.TextColor3=Color3.new(1,1,1)
+	return b
+end
+
+local btnSpeed,btnJump,btnAim=makeBtn("Speed",0),makeBtn("Jump",0.35),makeBtn("Aim",0.7)
+local toggle=Instance.new("TextButton",SGui)
+toggle.Text="≡"; toggle.Size=UDim2.new(0,40,0,40); toggle.Position=UDim2.new(0,0,0,0)
+
+-- Settings
+local speedNormal,speedBoost,jumpNormal,jumpHigh=16,32,50,120
+local aimRange,smooth=80,0.15
+local onS,onJ,onA,onM=false,false,false,false
+H.WalkSpeed=speedNormal; H.JumpPower=jumpNormal
+
+-- Menu toggle
+local function slide(x) Menu:TweenPosition(UDim2.new(x,0,0.3,0),"Out","Quad",0.3,true) end
+local function toggleMenu() onM=not onM; slide(onM and 0.02 or -0.3) end
+toggle.MouseButton1Click:Connect(toggleMenu)
+UIS.InputBegan:Connect(function(i) if i.KeyCode==Enum.KeyCode.F then toggleMenu() end end)
+
+-- Button toggles
+btnSpeed.MouseButton1Click:Connect(function() onS=not onS end)
+btnJump.MouseButton1Click:Connect(function() onJ=not onJ end)
+btnAim.MouseButton1Click:Connect(function() onA=not onA end)
+
+-- Find nearest enemy
+local function getTarget()
+	local enemies=workspace:FindFirstChild("Enemies")
+	if not enemies then return end
+	local nearest,dist=nil,aimRange
+	for _,v in ipairs(enemies:GetChildren()) do
+		local root=v:FindFirstChild("HumanoidRootPart") or v.PrimaryPart
+		if root then
+			local d=(root.Position-Cam.CFrame.Position).Magnitude
+			if d<dist then nearest,dist=root,d end
+		end
+	end
+	return nearest
+end
+
+-- Update loop (DeltaTime)
+RS.RenderStepped:Connect(function(dt)
+	-- Speed & Jump smoothing
+	H.WalkSpeed=H.WalkSpeed+((onS and speedBoost or speedNormal)-H.WalkSpeed)*dt*10
+	H.JumpPower=H.JumpPower+((onJ and jumpHigh or jumpNormal)-H.JumpPower)*dt*10
+
+	-- Aim Assist
+	if onA then
+		local t=getTarget()
+		if t then
+			Cam.CFrame=Cam.CFrame:Lerp(CFrame.lookAt(Cam.CFrame.Position,t.Position),smooth*dt*60)
+		end
+	end
+end)
